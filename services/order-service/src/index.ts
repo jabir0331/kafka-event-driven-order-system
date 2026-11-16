@@ -1,3 +1,4 @@
+// services\order-service\src\index.ts
 import { producer } from "./kafka/producer.js";
 
 async function main() {
