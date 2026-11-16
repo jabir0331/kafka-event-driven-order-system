@@ -2,5 +2,5 @@
 import { kafka } from "../config/kafka.js";
 
 export const consumer = kafka.consumer({
-  groupId: "order-processing-service",
+  groupId: "inventory-service",
 });
