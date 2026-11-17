@@ -27,7 +27,9 @@ async function main() {
 
       const result = reserveInventory(order);
 
-      if (result.success) {
+      if (result.duplicate) {
+        console.log("DUPLICATE:", result.message);
+      } else if (result.success) {
         console.log("SUCCESS:", result.message);
       } else {
         console.log("FAILED:", result.message);

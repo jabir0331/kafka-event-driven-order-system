@@ -1,54 +1,69 @@
-import { inventory } from "./inventory.js";
+import { inventory, processedOrders } from "./inventory.js";
 
 interface OrderItem {
-  productId: string;
-  quantity: number;
+    productId: string;
+    quantity: number;
 }
 
 interface Order {
-  orderId: string;
-  customerId: string;
-  items: OrderItem[];
-  amount: number;
-  status: string;
+    orderId: string;
+    customerId: string;
+    items: OrderItem[];
+    amount: number;
+    status: string;
 }
 
 export function reserveInventory(order: Order) {
-  // Step 1: Check whether all products have sufficient stock
-  for (const item of order.items) {
-    const availableStock = inventory.get(item.productId);
-
-    if (availableStock === undefined) {
-      return {
-        success: false,
-        message: `Product ${item.productId} does not exist`,
-      };
+    // Step 1: Check for duplicate orders
+    if (processedOrders.has(order.orderId)) {
+        return {
+            success: true,
+            duplicate: true,
+            message: `Order ${order.orderId} has already been processed`,
+        };
     }
 
-    if (availableStock < item.quantity) {
-      return {
-        success: false,
-        message: `Insufficient stock for ${item.productId}`,
-      };
+    // Step 2: Validate all products
+    for (const item of order.items) {
+        const availableStock = inventory.get(item.productId);
+
+        if (availableStock === undefined) {
+            return {
+                success: false,
+                duplicate: false,
+                message: `Product ${item.productId} does not exist`,
+            };
+        }
+
+        if (availableStock < item.quantity) {
+            return {
+                success: false,
+                duplicate: false,
+                message: `Insufficient stock for ${item.productId}`,
+            };
+        }
     }
-  }
 
-  // Step 2: Reserve stock only after all checks pass
-  for (const item of order.items) {
-    const availableStock = inventory.get(item.productId)!;
+    // Step 3: Reserve stock
+    for (const item of order.items) {
+        const availableStock = inventory.get(item.productId)!;
 
-    inventory.set(
-      item.productId,
-      availableStock - item.quantity
-    );
-  }
+        inventory.set(
+            item.productId,
+            availableStock - item.quantity
+        );
+    }
 
-  return {
-    success: true,
-    message: "Inventory reserved successfully",
-  };
+    // Step 4: Mark order as successfully processed
+    processedOrders.add(order.orderId);
+
+    return {
+        success: true,
+        duplicate: false,
+        message: "Inventory reserved successfully",
+    };
 }
 
 export function getInventory() {
-  return Object.fromEntries(inventory);
+    return Object.fromEntries(inventory);
 }
