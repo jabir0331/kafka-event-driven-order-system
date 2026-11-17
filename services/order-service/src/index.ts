@@ -8,13 +8,14 @@ app.use(express.json());
 
 app.post("/orders", async (req, res) => {
     try {
-        const { customerId, amount } = req.body;
+        const { customerId, items, amount } = req.body;
 
         const orderId = `ORD-${Date.now()}`;
 
         const order = {
             orderId,
             customerId,
+            items,
             amount,
             status: "CREATED",
         };
