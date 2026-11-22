@@ -1,11 +1,14 @@
 // services\inventory-service\src\index.ts
 import { consumer } from "./kafka/consumer.js";
-import { reserveInventory, getInventory } from "./inventory/inventory.service.js";
+import { producer } from "./kafka/producer.js";
+import { getInventory, reserveInventory } from "./inventory/inventory.service.js";
 
 async function main() {
   await consumer.connect();
+  await producer.connect();
 
   console.log("Kafka consumer connected successfully!");
+  console.log("Kafka producer connected successfully!");
 
   await consumer.subscribe({
     topic: "orders.created",
@@ -31,6 +34,23 @@ async function main() {
         console.log("DUPLICATE:", result.message);
       } else if (result.success) {
         console.log("SUCCESS:", result.message);
+
+        await producer.send({
+          topic: "inventory.reserved",
+          messages: [
+            {
+              key: order.orderId,
+              value: JSON.stringify({
+                orderId: order.orderId,
+                customerId: order.customerId,
+                status: "RESERVED",
+                message: result.message,
+              }),
+            }
+          ]
+        });
+
+        console.log("Published inventory.reserved:", order.orderId);
       } else {
         console.log("FAILED:", result.message);
       }
