@@ -53,6 +53,23 @@ async function main() {
         console.log("Published inventory.reserved:", order.orderId);
       } else {
         console.log("FAILED:", result.message);
+
+        await producer.send({
+          topic: "inventory.rejected",
+          messages: [
+            {
+              key: order.orderId,
+              value: JSON.stringify({
+                orderId: order.orderId,
+                customerId: order.customerId,
+                status: "REJECTED",
+                reason: result.message,
+              }),
+            }
+          ]
+        });
+
+        console.log("Published inventory.rejected:", order.orderId);
       }
 
       console.log("Current inventory:", getInventory());
