@@ -1,0 +1,27 @@
+// services\order-service\prisma\schema.prisma
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Order {
+  orderId    String      @id
+  customerId String
+  items      Json
+  amount     Float
+  status     OrderStatus @default(CREATED)
+
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+}
+
+enum OrderStatus {
+  CREATED
+  RESERVED
+  REJECTED
+}
