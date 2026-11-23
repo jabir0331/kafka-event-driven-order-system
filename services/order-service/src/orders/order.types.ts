@@ -10,5 +10,3 @@ export interface Order {
     amount: number;
     status: "CREATED" | "RESERVED" | "REJECTED";
 }
-
-export const orders = new Map<string, Order>();

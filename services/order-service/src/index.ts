@@ -2,7 +2,8 @@
 import express from "express";
 import { producer } from "./kafka/producer.js";
 import { consumer } from "./kafka/consumer.js";
-import { orders, type Order } from "./orders/order.store.js";
+import { prisma } from "./config/prisma.js";
+import type { Order } from "./orders/order.types.js";
 
 const app = express();
 
@@ -22,7 +23,15 @@ app.post("/orders", async (req, res) => {
             status: "CREATED",
         };
 
-        orders.set(orderId, order);
+        await prisma.order.create({
+            data: {
+                ...order,
+                items: order.items.map((item) => ({
+                    productId: item.productId,
+                    quantity: item.quantity,
+                })),
+            },
+        });
 
         await producer.send({
             topic: "orders.created",
@@ -46,19 +55,29 @@ app.post("/orders", async (req, res) => {
     }
 });
 
-app.get("/orders/:orderId", (req, res) => {
-    const { orderId } = req.params;
-
-    const order = orders.get(orderId);
-
-    if(!order) {
-        res.status(404).json({
-            message: "Order not found"
+app.get("/orders/:orderId", async (req, res) => {
+    try {
+        const order = await prisma.order.findUnique({
+            where: {
+                orderId: req.params.orderId,
+            },
         });
-        return;
+
+        if (!order) {
+            return res.status(404).json({
+                message: "Order not found",
+            });
+        }
+
+        return res.status(200).json(order);
+    } catch (error) {
+        console.error("Failed to fetch order:", error);
+
+        return res.status(500).json({
+            message: "Failed to fetch order",
+        });
     }
 
-    res.status(200).json(order);
 });
 
 const PORT = 3000;
@@ -91,23 +110,39 @@ async function main() {
 
             const event = JSON.parse(message.value.toString());
 
-            const order = orders.get(event.orderId);
+            const newStatus = topic === "inventory.reserved" ? "RESERVED" : "REJECTED";
 
-            if (!order) {
-                console.log(`Order ${event.orderId} not found in local store`);
-                return;
-            }
+            try {
+                const order = await prisma.order.findUnique({
+                    where: {
+                        orderId: event.orderId,
+                    },
+                });
 
-            if (topic === "inventory.reserved") {
-                order.status = "RESERVED";
+                if (!order) {
+                    console.log(`Order ${event.orderId} not found in database`);
+                    return;
+                }
 
-                console.log("\nOrder inventory successfully reserved:");
+                await prisma.order.update({
+                    where: {
+                        orderId: event.orderId,
+                    },
+                    data: {
+                        status: newStatus,
+                    },
+                });
+
+                if (topic === "inventory.reserved") {
+                    console.log("\nOrder inventory successfully reserved:");
+                } else {
+                    console.log("\nOrder inventory reservation rejected:");
+                }
+
                 console.log(event);
-            } else if (topic === "inventory.rejected") {
-                order.status = "REJECTED";
-
-                console.log("\nOrder inventory reservation rejected:");
-                console.log(event);
+            } catch (error) {
+                console.error(`Failed to update order ${event.orderId}:`, error);
+                throw error;
             }
         },
     });
