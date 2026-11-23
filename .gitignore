@@ -14,3 +14,9 @@ dist/
 # Operating system
 .DS_Store
 Thumbs.db
+
+# AI coding agent configuration and generated skills
+.agents/
+.claude/
+.windsurf/
+skills-lock.json
